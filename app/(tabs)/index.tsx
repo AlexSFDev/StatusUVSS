@@ -1,7 +1,8 @@
+import { useVehicle } from "@/contexts/VehicleContext";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -24,270 +25,273 @@ const C = {
   orange: "#F0A34A",
 };
 
-type SecurityState = "armed" | "disarmed";
-type CommandState = "idle" | "pending" | "confirmed";
-
-export default function DashboardScreen() {
-  const [security, setSecurity] = useState<SecurityState>("disarmed");
-  const [command, setCommand] = useState<CommandState>("idle");
-  const [battery] = useState(94);
-
-  useEffect(() => {
-    if (command !== "pending") return;
-
-    const timer = setTimeout(() => {
-      setSecurity((current) => (current === "armed" ? "disarmed" : "armed"));
-      setCommand("confirmed");
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [command]);
-
-  useEffect(() => {
-    if (command !== "confirmed") return;
-
-    const timer = setTimeout(() => setCommand("idle"), 2500);
-    return () => clearTimeout(timer);
-  }, [command]);
-
-  const toggleSecurity = async () => {
-    if (command === "pending") return;
-
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setCommand("pending");
-  };
-
-  const armed = security === "armed";
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.brand}>
-              UVSS<Text style={styles.brandAccent}>.</Text>
-            </Text>
-            <Text style={styles.headerSubtitle}>VEHICLE SECURITY SYSTEM</Text>
-          </View>
-
-          <View style={styles.profileButton}>
-            <Text style={styles.profileInitial}>A</Text>
-          </View>
-        </View>
-
-        <View style={styles.sectionHeading}>
-          <Text style={styles.eyebrow}>YOUR VEHICLE</Text>
-          <Text style={styles.lastUpdated}>DEMO ENVIRONMENT</Text>
-        </View>
-
-        <LinearGradient
-          colors={["#20232B", "#13151B", "#101116"]}
-          style={styles.vehicleCard}
-        >
-          <View style={styles.vehicleTop}>
-            <View>
-              <Text style={styles.vehicleName}>Honda CR-V</Text>
-              <Text style={styles.registration}>RE22 WUX</Text>
-            </View>
-            <View style={styles.vehicleIcon}>
-              <Text style={styles.carEmoji}>🚘</Text>
-            </View>
-          </View>
-
-          <View style={styles.vehicleDivider} />
-
-          <View style={styles.vehicleFooter}>
-            <View>
-              <Text style={styles.smallLabel}>SYSTEM STATUS</Text>
-              <View style={styles.statusLine}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    { backgroundColor: armed ? C.green : C.orange },
-                  ]}
-                />
-                <Text style={styles.statusText}>
-                  {armed ? "Protected" : "Disarmed"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.demoBadge}>
-              <Text style={styles.demoBadgeText}>SIMULATED</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>Security control</Text>
-          <Text style={styles.sectionSubtitle}>
-            Manage your vehicle protection
-          </Text>
-        </View>
-
-        <View style={styles.securityCard}>
-          <View style={styles.securityIconContainer}>
-            <Text style={styles.securityIcon}>{armed ? "🔒" : "🔓"}</Text>
-          </View>
-
-          <Text style={styles.securityTitle}>
-            {armed ? "Your vehicle is armed" : "Your vehicle is disarmed"}
-          </Text>
-
-          <Text style={styles.securityDescription}>
-            {armed
-              ? "Security monitoring is currently enabled."
-              : "Your vehicle is not currently being monitored."}
-          </Text>
-
-          <Pressable
-            onPress={toggleSecurity}
-            disabled={command === "pending"}
-            style={({ pressed }) => [
-              styles.armButton,
-              armed ? styles.disarmButton : styles.armButtonEnabled,
-              pressed && styles.pressed,
-              command === "pending" && styles.disabledButton,
-            ]}
-          >
-            {command === "pending" ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.armButtonText}>
-                {armed ? "DISARM SYSTEM" : "ARM SYSTEM"}
-              </Text>
-            )}
-          </Pressable>
-
-          <Text style={styles.commandFeedback}>
-            {command === "pending"
-              ? "Processing simulated command..."
-              : command === "confirmed"
-                ? "Simulated state updated successfully"
-                : "Simulation only · No vehicle hardware connected"}
-          </Text>
-        </View>
-
-        <View style={styles.sectionHeading}>
-          <Text style={styles.sectionTitle}>System overview</Text>
-          <Text style={styles.sectionSubtitle}>Latest simulated telemetry</Text>
-        </View>
-
-        <View style={styles.metricsGrid}>
-          <MetricCard
-            icon="📡"
-            title="Device"
-            value="Offline"
-            detail="No hardware connected"
-            color={C.orange}
-          />
-          <MetricCard
-            icon="📍"
-            title="GPS"
-            value="Unavailable"
-            detail="Waiting for hardware"
-            color={C.muted}
-          />
-          <MetricCard
-            icon="🔋"
-            title="Battery"
-            value={`${battery}%`}
-            detail="Simulated reading"
-            color={C.green}
-          />
-          <MetricCard
-            icon="🛡️"
-            title="Protection"
-            value={armed ? "Armed" : "Inactive"}
-            detail="App simulation"
-            color={armed ? C.green : C.orange}
-          />
-        </View>
-
-        <View style={styles.activityHeader}>
-          <Text style={styles.sectionTitle}>Recent activity</Text>
-          <Text style={styles.viewAll}>VIEW ALL</Text>
-        </View>
-
-        <View style={styles.activityCard}>
-          <ActivityRow
-            icon="⚙️"
-            title="System initialised"
-            detail="UVSS Control simulation started"
-            time="Just now"
-          />
-          <View style={styles.activityDivider} />
-          <ActivityRow
-            icon="🚘"
-            title="Vehicle registered"
-            detail="Honda CR-V · RE22 WUX"
-            time="Today"
-          />
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>UVSS CONTROL</Text>
-          <Text style={styles.footerVersion}>EARLY DEVELOPMENT BUILD</Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
 function MetricCard({
-  icon,
-  title,
+  label,
   value,
   detail,
-  color,
+  accent = C.text,
 }: {
-  icon: string;
-  title: string;
+  label: string;
   value: string;
   detail: string;
-  color: string;
+  accent?: string;
 }) {
   return (
     <View style={styles.metricCard}>
-      <View style={styles.metricTop}>
-        <Text style={styles.metricIcon}>{icon}</Text>
-        <View style={[styles.metricIndicator, { backgroundColor: color }]} />
-      </View>
-      <Text style={styles.metricTitle}>{title}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricValue, { color: accent }]}>{value}</Text>
       <Text style={styles.metricDetail}>{detail}</Text>
     </View>
   );
 }
 
 function ActivityRow({
-  icon,
   title,
-  detail,
-  time,
+  description,
+  timestamp,
 }: {
-  icon: string;
   title: string;
-  detail: string;
-  time: string;
+  description: string;
+  timestamp: string;
 }) {
+  const time = new Date(timestamp);
+  const formattedTime = Number.isNaN(time.getTime())
+    ? "Recently"
+    : time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   return (
     <View style={styles.activityRow}>
-      <View style={styles.activityIcon}>
-        <Text>{icon}</Text>
-      </View>
-      <View style={styles.activityInfo}>
+      <View style={styles.activityDot} />
+      <View style={styles.activityContent}>
         <Text style={styles.activityTitle}>{title}</Text>
-        <Text style={styles.activityDetail}>{detail}</Text>
+        <Text style={styles.activityDescription}>{description}</Text>
       </View>
-      <Text style={styles.activityTime}>{time}</Text>
+      <Text style={styles.activityTime}>{formattedTime}</Text>
     </View>
+  );
+}
+
+export default function DashboardScreen() {
+  const {
+    activeVehicle,
+    activities,
+    commandStatus,
+    command,
+    setSecurityState,
+  } = useVehicle();
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const isArmed = activeVehicle.securityState === "armed";
+  const isPending = commandStatus === "pending" || submitting;
+  const vehicleActivities = activities
+    .filter((item) => item.vehicleId === activeVehicle.id)
+    .slice(0, 5);
+
+  const handleSecurityChange = async (state: "armed" | "disarmed") => {
+    if (isPending || activeVehicle.securityState === state) return;
+
+    setSubmitting(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await setSecurityState(state);
+    setSubmitting(false);
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <StatusBar style="light" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.eyebrow}>STATUSFIRE PRODUCT</Text>
+            <Text style={styles.headerTitle}>UVSS Control</Text>
+          </View>
+          <View style={styles.simulationBadge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.badgeText}>SIMULATION</Text>
+          </View>
+        </View>
+
+        <LinearGradient
+          colors={["#20232B", "#14161C", "#111318"]}
+          style={styles.vehicleCard}
+        >
+          <View style={styles.vehicleTop}>
+            <View>
+              <Text style={styles.vehicleEyebrow}>YOUR VEHICLE</Text>
+              <Text style={styles.vehicleName}>
+                {activeVehicle.make} {activeVehicle.model}
+              </Text>
+              <Text style={styles.vehicleRegistration}>
+                {activeVehicle.registration}
+              </Text>
+            </View>
+            <View style={styles.vehicleIcon}>
+              <Text style={styles.vehicleIconText}>🚘</Text>
+            </View>
+          </View>
+
+          <View style={styles.vehicleDivider} />
+
+          <View style={styles.vehicleBottom}>
+            <View>
+              <Text style={styles.smallLabel}>CONNECTION</Text>
+              <View style={styles.inlineStatus}>
+                <View
+                  style={[styles.statusDot, { backgroundColor: C.orange }]}
+                />
+                <Text style={styles.vehicleStatus}>Device offline</Text>
+              </View>
+            </View>
+            <View style={styles.vehicleBottomRight}>
+              <Text style={styles.smallLabel}>PROTECTION</Text>
+              <Text
+                style={[
+                  styles.protectionStatus,
+                  { color: isArmed ? C.green : C.orange },
+                ]}
+              >
+                {isArmed ? "Armed" : "Disarmed"}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Security control</Text>
+          <Text style={styles.sectionSubtitle}>Vehicle protection</Text>
+        </View>
+
+        <View style={styles.securityCard}>
+          <View style={styles.securityTop}>
+            <View
+              style={[
+                styles.securityIcon,
+                { backgroundColor: isArmed ? "#153528" : "#382A19" },
+              ]}
+            >
+              <Text style={styles.securityIconText}>{isArmed ? "✓" : "!"}</Text>
+            </View>
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>
+                {isArmed ? "Protection is armed" : "Protection is disarmed"}
+              </Text>
+              <Text style={styles.securityDescription}>
+                {isArmed
+                  ? "The simulated security system is active."
+                  : "Your simulated security system is not active."}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.securityDivider} />
+
+          <View style={styles.buttonRow}>
+            <Pressable
+              disabled={isPending || isArmed}
+              onPress={() => void handleSecurityChange("armed")}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.armButton,
+                (isPending || isArmed) && styles.disabledButton,
+                pressed && !isPending && !isArmed && styles.pressedButton,
+              ]}
+            >
+              {isPending && command?.action === "armed" ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.actionButtonText}>ARM SYSTEM</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              disabled={isPending || !isArmed}
+              onPress={() => void handleSecurityChange("disarmed")}
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.disarmButton,
+                (isPending || !isArmed) && styles.disabledButton,
+                pressed && !isPending && isArmed && styles.pressedButton,
+              ]}
+            >
+              {isPending && command?.action === "disarmed" ? (
+                <ActivityIndicator color={C.text} />
+              ) : (
+                <Text style={[styles.actionButtonText, { color: C.text }]}>
+                  DISARM
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          <Text style={styles.simulationNotice}>
+            Simulation only. These controls do not communicate with or secure a
+            real vehicle.
+          </Text>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>System overview</Text>
+          <Text style={styles.sectionSubtitle}>Live status</Text>
+        </View>
+
+        <View style={styles.metricsGrid}>
+          <MetricCard
+            label="DEVICE"
+            value="Offline"
+            detail="No hardware connected"
+            accent={C.orange}
+          />
+          <MetricCard
+            label="GPS"
+            value="Unavailable"
+            detail="Waiting for hardware"
+            accent={C.muted}
+          />
+          <MetricCard
+            label="BATTERY"
+            value={
+              activeVehicle.telemetry.batteryPercentage == null
+                ? "—"
+                : `${activeVehicle.telemetry.batteryPercentage}%`
+            }
+            detail="Simulated reading"
+            accent={C.green}
+          />
+          <MetricCard
+            label="PROTECTION"
+            value={isArmed ? "Armed" : "Disarmed"}
+            detail="Current system state"
+            accent={isArmed ? C.green : C.orange}
+          />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent activity</Text>
+          <Text style={styles.sectionSubtitle}>Latest events</Text>
+        </View>
+
+        <View style={styles.activityCard}>
+          {vehicleActivities.length > 0 ? (
+            vehicleActivities.map((item) => (
+              <ActivityRow
+                key={item.id}
+                title={item.title}
+                description={item.description}
+                timestamp={item.timestamp}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No activity recorded yet.</Text>
+          )}
+        </View>
+
+        <Text style={styles.footer}>UVSS CONTROL · STATUSFIRE</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -296,149 +300,137 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.background,
   },
-  container: {
-    flex: 1,
-  },
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 35,
+    padding: 20,
+    paddingBottom: 36,
   },
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 32,
-  },
-  brand: {
-    color: C.text,
-    fontSize: 29,
-    fontWeight: "900",
-    letterSpacing: -1.5,
-  },
-  brandAccent: {
-    color: C.red,
-  },
-  headerSubtitle: {
-    color: C.muted,
-    fontSize: 9,
-    letterSpacing: 2,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  profileButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: C.surfaceLight,
-    borderWidth: 1,
-    borderColor: C.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileInitial: {
-    color: C.text,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  sectionHeading: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 13,
-    marginTop: 5,
+    marginBottom: 24,
   },
   eyebrow: {
-    color: C.muted,
+    color: C.red,
     fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 1.8,
+    letterSpacing: 2,
+    marginBottom: 5,
   },
-  lastUpdated: {
+  headerTitle: {
+    color: C.text,
+    fontSize: 27,
+    fontWeight: "800",
+    letterSpacing: -0.8,
+  },
+  simulationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#292016",
+    borderColor: "#594027",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  badgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: C.orange,
+  },
+  badgeText: {
     color: C.orange,
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 1,
   },
   vehicleCard: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 19,
+    padding: 19,
     borderWidth: 1,
     borderColor: C.border,
-    marginBottom: 30,
+    marginBottom: 27,
   },
   vehicleTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    minHeight: 90,
+  },
+  vehicleEyebrow: {
+    color: C.muted,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    marginBottom: 8,
   },
   vehicleName: {
     color: C.text,
-    fontSize: 23,
+    fontSize: 22,
     fontWeight: "800",
   },
-  registration: {
+  vehicleRegistration: {
     color: C.muted,
     fontSize: 13,
-    marginTop: 7,
-    letterSpacing: 2,
+    marginTop: 5,
+    letterSpacing: 1.5,
     fontWeight: "700",
   },
   vehicleIcon: {
-    width: 75,
-    height: 65,
+    width: 57,
+    height: 57,
+    borderRadius: 16,
     backgroundColor: "#292D37",
-    borderRadius: 15,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
-  carEmoji: {
-    fontSize: 36,
+  vehicleIconText: {
+    fontSize: 29,
   },
   vehicleDivider: {
     height: 1,
     backgroundColor: C.border,
-    marginVertical: 17,
+    marginVertical: 18,
   },
-  vehicleFooter: {
+  vehicleBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+  },
+  vehicleBottomRight: {
+    alignItems: "flex-end",
   },
   smallLabel: {
     color: C.muted,
     fontSize: 9,
     fontWeight: "800",
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
+    marginBottom: 7,
   },
-  statusLine: {
+  inlineStatus: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    gap: 8,
+    gap: 7,
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
   },
-  statusText: {
+  vehicleStatus: {
     color: C.text,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  protectionStatus: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
   },
-  demoBadge: {
-    backgroundColor: "#3A2C1C",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 7,
-  },
-  demoBadgeText: {
-    color: C.orange,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1,
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginBottom: 13,
   },
   sectionTitle: {
     color: C.text,
@@ -448,80 +440,93 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     color: C.muted,
     fontSize: 11,
-    marginTop: 4,
   },
   securityCard: {
     backgroundColor: C.surface,
-    borderRadius: 20,
     borderWidth: 1,
     borderColor: C.border,
-    padding: 21,
-    alignItems: "center",
-    marginBottom: 29,
+    borderRadius: 17,
+    padding: 17,
+    marginBottom: 27,
   },
-  securityIconContainer: {
-    width: 62,
-    height: 62,
-    borderRadius: 20,
-    backgroundColor: C.surfaceLight,
-    justifyContent: "center",
+  securityTop: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
+    gap: 13,
   },
   securityIcon: {
-    fontSize: 28,
+    width: 43,
+    height: 43,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  securityIconText: {
+    color: C.text,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  securityInfo: {
+    flex: 1,
   },
   securityTitle: {
     color: C.text,
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: "800",
-    textAlign: "center",
   },
   securityDescription: {
     color: C.muted,
-    fontSize: 12,
-    marginTop: 7,
-    textAlign: "center",
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  securityDivider: {
+    height: 1,
+    backgroundColor: C.border,
+    marginVertical: 17,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
   },
   armButton: {
-    width: "100%",
-    minHeight: 52,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 22,
-  },
-  armButtonEnabled: {
     backgroundColor: C.red,
   },
   disarmButton: {
-    backgroundColor: "#30343D",
+    backgroundColor: C.surfaceLight,
     borderWidth: 1,
-    borderColor: "#454A55",
-  },
-  armButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-  },
-  pressed: {
-    opacity: 0.8,
+    borderColor: C.border,
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.38,
   },
-  commandFeedback: {
+  pressedButton: {
+    opacity: 0.75,
+  },
+  actionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  simulationNotice: {
     color: C.muted,
     fontSize: 10,
-    textAlign: "center",
-    marginTop: 12,
+    lineHeight: 15,
+    marginTop: 13,
   },
   metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 30,
+    gap: 11,
+    marginBottom: 27,
   },
   metricCard: {
     width: "48%",
@@ -529,74 +534,49 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 16,
+    borderRadius: 15,
     padding: 15,
-    minHeight: 140,
+    minHeight: 105,
   },
-  metricTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  metricIcon: {
-    fontSize: 19,
-  },
-  metricIndicator: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  metricTitle: {
+  metricLabel: {
     color: C.muted,
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.1,
   },
   metricValue: {
-    color: C.text,
     fontSize: 17,
     fontWeight: "800",
-    marginTop: 5,
+    marginTop: 10,
   },
   metricDetail: {
     color: C.muted,
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 5,
-  },
-  activityHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 13,
-  },
-  viewAll: {
-    color: C.red,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1,
   },
   activityCard: {
     backgroundColor: C.surface,
-    borderRadius: 16,
     borderWidth: 1,
     borderColor: C.border,
+    borderRadius: 15,
     paddingHorizontal: 15,
   },
   activityRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 15,
-    gap: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    gap: 10,
   },
-  activityIcon: {
-    width: 37,
-    height: 37,
-    borderRadius: 11,
-    backgroundColor: C.surfaceLight,
-    alignItems: "center",
-    justifyContent: "center",
+  activityDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: C.red,
+    marginTop: 5,
   },
-  activityInfo: {
+  activityContent: {
     flex: 1,
   },
   activityTitle: {
@@ -604,33 +584,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  activityDetail: {
+  activityDescription: {
     color: C.muted,
     fontSize: 10,
+    lineHeight: 15,
     marginTop: 4,
   },
   activityTime: {
     color: C.muted,
     fontSize: 9,
   },
-  activityDivider: {
-    height: 1,
-    backgroundColor: C.border,
+  emptyText: {
+    color: C.muted,
+    fontSize: 12,
+    paddingVertical: 18,
   },
   footer: {
-    alignItems: "center",
-    marginTop: 28,
-    gap: 5,
-  },
-  footerText: {
-    color: C.muted,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 2,
-  },
-  footerVersion: {
     color: "#555B66",
-    fontSize: 8,
-    letterSpacing: 1.2,
+    textAlign: "center",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    marginTop: 25,
   },
 });
