@@ -2,7 +2,6 @@ import { Tabs } from "expo-router";
 import { Text } from "react-native";
 
 const C = {
-  background: "#090A0D",
   surface: "#121419",
   border: "#252832",
   muted: "#858B98",
@@ -44,6 +43,15 @@ export default function TabLayout() {
           title: "Security",
           tabBarIcon: ({ color }) => (
             <Text style={{ color, fontSize: 19 }}>◈</Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="vehicles"
+        options={{
+          title: "Vehicles",
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 19 }}>🚘</Text>
           ),
         }}
       />
