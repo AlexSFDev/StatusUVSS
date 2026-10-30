@@ -242,8 +242,7 @@ export default function VehiclesScreen() {
           </Pressable>
 
           <Text style={styles.formNotice}>
-            Vehicles are currently stored in app memory. They will not survive
-            an app restart until account storage is implemented.
+            Vehicles are currently stored in AsyncStorage.
           </Text>
         </View>
 
