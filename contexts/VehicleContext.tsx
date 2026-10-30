@@ -2,11 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type {
   CommandStatus,
@@ -21,6 +23,8 @@ import {
   createInitialVehicle,
   sendSimulatedSecurityCommand,
 } from "@/services/vehicleSimulator";
+
+import { loadVehicleState, saveVehicleState } from "@/services/vehicleStorage";
 
 export interface NewVehicleInput {
   make: string;
@@ -40,6 +44,7 @@ interface VehicleContextValue {
   activities: VehicleActivity[];
   command: SecurityCommand | null;
   commandStatus: CommandStatus;
+  storageError: string | null;
   selectVehicle: (vehicleId: string) => void;
   addVehicle: (input: NewVehicleInput) => AddVehicleResult;
   setSecurityState: (state: SecurityState) => Promise<void>;
@@ -47,29 +52,89 @@ interface VehicleContextValue {
 
 const VehicleContext = createContext<VehicleContextValue | null>(null);
 
-export function VehicleProvider({ children }: { children: ReactNode }) {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([createInitialVehicle()]);
+const initialVehicle = createInitialVehicle();
 
-  const [activeVehicleId, setActiveVehicleId] = useState(
-    "vehicle_honda_crv_001",
-  );
+export function VehicleProvider({ children }: { children: ReactNode }) {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([initialVehicle]);
+
+  const [activeVehicleId, setActiveVehicleId] = useState(initialVehicle.id);
 
   const [activities, setActivities] = useState<VehicleActivity[]>([
     createActivity(
-      "vehicle_honda_crv_001",
+      initialVehicle.id,
       "System initialised",
       "UVSS Control simulation started",
     ),
     createActivity(
-      "vehicle_honda_crv_001",
+      initialVehicle.id,
       "Vehicle registered",
-      "Honda CR-V · RE22 WUX",
+      `${initialVehicle.make} ${initialVehicle.model} · ${initialVehicle.registration}`,
       "vehicle",
     ),
   ]);
 
   const [command, setCommand] = useState<SecurityCommand | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
+
   const commandLock = useRef(false);
+  const persistenceEnabled = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrate = async () => {
+      try {
+        const savedState = await loadVehicleState();
+
+        if (cancelled) return;
+
+        if (savedState) {
+          setVehicles(savedState.vehicles);
+          setActiveVehicleId(savedState.activeVehicleId);
+          setActivities(savedState.activities);
+        }
+
+        persistenceEnabled.current = true;
+      } catch (error) {
+        if (cancelled) return;
+
+        persistenceEnabled.current = false;
+
+        setStorageError(
+          error instanceof Error
+            ? error.message
+            : "Saved vehicle data could not be loaded.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsReady(true);
+        }
+      }
+    };
+
+    void hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || !persistenceEnabled.current) return;
+
+    void saveVehicleState({
+      vehicles,
+      activeVehicleId,
+      activities,
+    }).catch((error) => {
+      setStorageError(
+        error instanceof Error
+          ? error.message
+          : "Vehicle data could not be saved.",
+      );
+    });
+  }, [vehicles, activeVehicleId, activities, isReady]);
 
   const activeVehicle = useMemo(() => {
     const selected = vehicles.find((vehicle) => vehicle.id === activeVehicleId);
@@ -90,6 +155,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
           ? vehicleId
           : current,
       );
+
       setCommand(null);
     },
     [vehicles],
@@ -279,6 +345,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       activities,
       command,
       commandStatus,
+      storageError,
       selectVehicle,
       addVehicle,
       setSecurityState,
@@ -290,11 +357,22 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       activities,
       command,
       commandStatus,
+      storageError,
       selectVehicle,
       addVehicle,
       setSecurityState,
     ],
   );
+
+  if (!isReady) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color="#F04444" size="large" />
+        <Text style={styles.loadingTitle}>UVSS CONTROL</Text>
+        <Text style={styles.loadingSubtitle}>Loading your garage...</Text>
+      </View>
+    );
+  }
 
   return (
     <VehicleContext.Provider value={value}>{children}</VehicleContext.Provider>
@@ -310,3 +388,24 @@ export function useVehicle() {
 
   return context;
 }
+
+const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: "#090A0D",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingTitle: {
+    color: "#F5F5F7",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginTop: 20,
+  },
+  loadingSubtitle: {
+    color: "#858B98",
+    fontSize: 11,
+    marginTop: 8,
+  },
+});
