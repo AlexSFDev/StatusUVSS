@@ -22,6 +22,17 @@ import {
   sendSimulatedSecurityCommand,
 } from "@/services/vehicleSimulator";
 
+export interface NewVehicleInput {
+  make: string;
+  model: string;
+  registration: string;
+  year: number | null;
+}
+
+type AddVehicleResult =
+  | { success: true; vehicleId: string }
+  | { success: false; error: string };
+
 interface VehicleContextValue {
   vehicles: Vehicle[];
   activeVehicle: Vehicle;
@@ -30,6 +41,7 @@ interface VehicleContextValue {
   command: SecurityCommand | null;
   commandStatus: CommandStatus;
   selectVehicle: (vehicleId: string) => void;
+  addVehicle: (input: NewVehicleInput) => AddVehicleResult;
   setSecurityState: (state: SecurityState) => Promise<void>;
 }
 
@@ -71,26 +83,130 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
 
   const commandStatus: CommandStatus = command?.status ?? "idle";
 
-  const selectVehicle = useCallback((vehicleId: string) => {
-    setActiveVehicleId(vehicleId);
-    setCommand(null);
-  }, []);
+  const selectVehicle = useCallback(
+    (vehicleId: string) => {
+      setActiveVehicleId((current) =>
+        vehicles.some((vehicle) => vehicle.id === vehicleId)
+          ? vehicleId
+          : current,
+      );
+      setCommand(null);
+    },
+    [vehicles],
+  );
+
+  const addVehicle = useCallback(
+    (input: NewVehicleInput): AddVehicleResult => {
+      const make = input.make.trim();
+      const model = input.model.trim();
+      const registration = input.registration
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, " ");
+
+      if (!make || !model || !registration) {
+        return {
+          success: false,
+          error: "Make, model and registration are required.",
+        };
+      }
+
+      if (make.length > 40 || model.length > 40 || registration.length > 12) {
+        return {
+          success: false,
+          error: "One or more fields are too long.",
+        };
+      }
+
+      const registrationKey = registration.replace(/\s/g, "");
+
+      const duplicate = vehicles.some(
+        (vehicle) =>
+          vehicle.registration.replace(/\s/g, "").toUpperCase() ===
+          registrationKey,
+      );
+
+      if (duplicate) {
+        return {
+          success: false,
+          error: "A vehicle with this registration is already registered.",
+        };
+      }
+
+      if (
+        input.year !== null &&
+        (!Number.isInteger(input.year) ||
+          input.year < 1886 ||
+          input.year > new Date().getFullYear() + 1)
+      ) {
+        return {
+          success: false,
+          error: "Enter a valid vehicle year.",
+        };
+      }
+
+      const vehicleId = `vehicle_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      const vehicle: Vehicle = {
+        id: vehicleId,
+        name: `${make} ${model}`,
+        registration,
+        make,
+        model,
+        year: input.year,
+        dataSource: "simulated",
+        connectionStatus: "disconnected",
+        securityState: "disarmed",
+        telemetry: {
+          batteryPercentage: null,
+          signalStrength: null,
+          temperature: null,
+          location: {
+            latitude: null,
+            longitude: null,
+            accuracy: null,
+            updatedAt: null,
+          },
+          lastUpdated: new Date().toISOString(),
+        },
+      };
+
+      setVehicles((current) => [...current, vehicle]);
+      setActiveVehicleId(vehicleId);
+      setCommand(null);
+
+      setActivities((current) => [
+        createActivity(
+          vehicleId,
+          "Vehicle registered",
+          `${make} ${model} · ${registration}`,
+          "vehicle",
+        ),
+        ...current,
+      ]);
+
+      return { success: true, vehicleId };
+    },
+    [vehicles],
+  );
 
   const setSecurityState = useCallback(
     async (targetState: SecurityState) => {
       if (commandLock.current) return;
 
       const vehicle = vehicles.find((item) => item.id === activeVehicleId);
+
       if (!vehicle || vehicle.securityState === targetState) return;
 
       commandLock.current = true;
 
+      const vehicleId = vehicle.id;
       const commandId = `command_${Date.now()}`;
       const createdAt = new Date().toISOString();
 
       setCommand({
         id: commandId,
-        vehicleId: activeVehicleId,
+        vehicleId,
         action: targetState,
         status: "pending",
         createdAt,
@@ -103,7 +219,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
 
         setVehicles((current) =>
           current.map((item) =>
-            item.id === activeVehicleId
+            item.id === vehicleId
               ? { ...item, securityState: result.state }
               : item,
           ),
@@ -111,7 +227,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
 
         setCommand({
           id: commandId,
-          vehicleId: activeVehicleId,
+          vehicleId,
           action: targetState,
           status: "confirmed",
           createdAt,
@@ -121,7 +237,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
 
         setActivities((current) => [
           createActivity(
-            activeVehicleId,
+            vehicleId,
             targetState === "armed" ? "System armed" : "System disarmed",
             "Simulated command confirmed. No physical vehicle control occurred.",
             "security",
@@ -131,7 +247,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       } catch {
         setCommand({
           id: commandId,
-          vehicleId: activeVehicleId,
+          vehicleId,
           action: targetState,
           status: "failed",
           createdAt,
@@ -141,7 +257,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
 
         setActivities((current) => [
           createActivity(
-            activeVehicleId,
+            vehicleId,
             "Security command failed",
             "The simulated command could not be completed.",
             "error",
@@ -164,6 +280,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       command,
       commandStatus,
       selectVehicle,
+      addVehicle,
       setSecurityState,
     }),
     [
@@ -174,6 +291,7 @@ export function VehicleProvider({ children }: { children: ReactNode }) {
       command,
       commandStatus,
       selectVehicle,
+      addVehicle,
       setSecurityState,
     ],
   );
